@@ -3,9 +3,11 @@ package com.example.favouriteplaces
 
 import android.Manifest
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
@@ -31,7 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -43,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
@@ -54,15 +57,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.lifecycleScope
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.DatePickerColors
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -70,6 +75,7 @@ import java.time.format.DateTimeFormatter
 class AddPlace : AppCompatActivity() {
 
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -81,6 +87,7 @@ class AddPlace : AppCompatActivity() {
     }
 
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     fun AddFavouritePlaceScreen() {
 
@@ -120,12 +127,14 @@ class AddPlace : AppCompatActivity() {
     }
 
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Preview
     @Composable
     fun MyPreview() {
         AddFavouritePlaceScreen()
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     private fun AddFavouritePlaceContent() {
         val titleText = remember { mutableStateOf("") }
@@ -275,71 +284,112 @@ class AddPlace : AppCompatActivity() {
 
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @OptIn(ExperimentalPermissionsApi::class)
     @Composable
     fun PermissionHandling(context: Context) {
 
         val permissionState =
-            rememberPermissionState(permission = Manifest.permission.CAMERA)
+            rememberMultiplePermissionsState(
+                permissions =
+                listOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
+            )
+
 
         val lifecycleOwner = LocalLifecycleOwner.current
 
-        var permissionDenied by remember {
-            mutableStateOf(false)
-        }
 
         DisposableEffect(key1 = lifecycleOwner,
             effect = {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_START) {
-                        permissionState.launchPermissionRequest()
+
+                        lifecycleScope.launch {
+
+                            permissionState.launchMultiplePermissionRequest()
+
+                            while (!permissionState.allPermissionsGranted &&
+                                !permissionState.permissions.any { it.status.shouldShowRationale || !it.status.isGranted }
+                            ) {
+                                delay(1000)
+                            }
+                            permissionState.permissions.forEach { perm ->
+                                when (perm.permission) {
+
+                                    Manifest.permission.CAMERA -> {
+                                        when {
+                                            perm.status.isGranted -> {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Camera permission has been granted",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+
+                                            perm.status.shouldShowRationale -> {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Camera permission is needed to upload images",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+
+                                    Manifest.permission.READ_MEDIA_IMAGES -> {
+                                        when {
+                                            perm.status.isGranted -> {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Storage permission has been granted",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+
+                                            perm.status.shouldShowRationale -> {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Storage permission is needed to upload images",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
+
+
+                                }
+                            }
+
+                        }
+
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
                 onDispose {
                     lifecycleOwner.lifecycle.removeObserver(observer)
                 }
-            }
-        )
+            })
 
-        LaunchedEffect(permissionState) {
-            when {
-                permissionState.status.isGranted -> {
-                    Toast.makeText(
-                        context,
-                        "Camera permission has been granted",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
 
-                permissionState.status.shouldShowRationale -> {
-                    Toast.makeText(
-                        context,
-                        "Camera permission is needed to access the camera",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+        if (permissionState.allPermissionsGranted) {
+            AlertDialog(
+                onDismissRequest = { },
+                title = { Text(text = "Dialog") },
+                text = { Text(text = "Please choose from the following:") },
+                buttons = {
+                    Column {
+                        Text(text = "Choose from storage",
+                            modifier = Modifier.clickable { })
 
-                !permissionState.status.isGranted -> {
+                        Spacer(modifier = Modifier.height(5.dp))
 
-                    if (permissionDenied) {
-                        Toast.makeText(context, "Camera access is denied", Toast.LENGTH_SHORT)
-                            .show()
+                        Text(text = "Take a picture",
+                            modifier = Modifier.clickable { })
                     }
-                }
-            }
+                },
+                shape = RectangleShape
+            )
         }
-
-        DisposableEffect(permissionState) {
-            if (permissionState.status == PermissionStatus.Denied(shouldShowRationale = true)) {
-                permissionDenied = true
-            }
-            onDispose {
-                // Reset the flag when the composable is disposed
-                permissionDenied = false
-            }
-        }
-
     }
 }
 
