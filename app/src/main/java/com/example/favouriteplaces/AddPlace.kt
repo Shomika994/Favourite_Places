@@ -13,6 +13,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +23,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
@@ -45,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
@@ -55,6 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.lifecycleScope
@@ -66,8 +68,7 @@ import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.DatePickerColors
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -260,7 +261,6 @@ class AddPlace : AppCompatActivity() {
                 fontSize = 18.sp,
                 modifier = Modifier.clickable {
                     textClicked = true
-
                 }
             )
 
@@ -295,8 +295,8 @@ class AddPlace : AppCompatActivity() {
                 listOf(Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES)
             )
 
-
         val lifecycleOwner = LocalLifecycleOwner.current
+        var showDialog by remember { mutableStateOf(true) }
 
 
         DisposableEffect(key1 = lifecycleOwner,
@@ -304,64 +304,17 @@ class AddPlace : AppCompatActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_START) {
 
-                        lifecycleScope.launch {
+                        /** Figure out why is permission status not shown when permissions are first set **/
 
+                        val job = lifecycleScope.launch(Dispatchers.Default) {
                             permissionState.launchMultiplePermissionRequest()
-
-                            while (!permissionState.allPermissionsGranted &&
-                                !permissionState.permissions.any { it.status.shouldShowRationale || !it.status.isGranted }
-                            ) {
-                                delay(1000)
-                            }
-                            permissionState.permissions.forEach { perm ->
-                                when (perm.permission) {
-
-                                    Manifest.permission.CAMERA -> {
-                                        when {
-                                            perm.status.isGranted -> {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Camera permission has been granted",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-
-                                            perm.status.shouldShowRationale -> {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Camera permission is needed to upload images",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    }
-
-                                    Manifest.permission.READ_MEDIA_IMAGES -> {
-                                        when {
-                                            perm.status.isGranted -> {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Storage permission has been granted",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-
-                                            perm.status.shouldShowRationale -> {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Storage permission is needed to upload images",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    }
-
-
-                                }
-                            }
-
+                            delay(1000L)
                         }
 
+                        runBlocking {
+                            delay(2000L)
+                            job.join()
+                        }
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -370,28 +323,126 @@ class AddPlace : AppCompatActivity() {
                 }
             })
 
+        permissionState.permissions.forEach { perm ->
+            when (perm.permission) {
+
+                Manifest.permission.CAMERA -> {
+                    when {
+                        perm.status.isGranted -> {
+                            Toast.makeText(
+                                context,
+                                "Camera permission has been granted",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        perm.status.shouldShowRationale -> {
+                            Toast.makeText(
+                                context,
+                                "Camera permission is needed to upload images",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+
+                Manifest.permission.READ_MEDIA_IMAGES -> {
+                    when {
+                        perm.status.isGranted -> {
+                            Toast.makeText(
+                                context,
+                                "Storage permission has been granted",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        perm.status.shouldShowRationale -> {
+                            Toast.makeText(
+                                context,
+                                "Storage permission is needed to upload images",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+
+                (!permissionState.permissions[0].status.isGranted && !permissionState.permissions[1].status.isGranted).toString() -> {
+
+                }
+
+
+            }
+        }
 
         if (permissionState.allPermissionsGranted) {
-            AlertDialog(
-                onDismissRequest = { },
-                title = { Text(text = "Dialog") },
-                text = { Text(text = "Please choose from the following:") },
-                buttons = {
-                    Column {
-                        Text(text = "Choose from storage",
-                            modifier = Modifier.clickable { })
 
-                        Spacer(modifier = Modifier.height(5.dp))
+            MyDialog(onDismiss = { showDialog = false }, showDialog = showDialog)
 
-                        Text(text = "Take a picture",
-                            modifier = Modifier.clickable { })
+        }
+
+
+    }
+
+    @Composable
+    fun MyDialog(
+        onDismiss: () -> Unit,
+        showDialog: Boolean
+    ) {
+
+        if (showDialog) {
+
+            Dialog(
+                onDismissRequest = { onDismiss() },
+                content = {
+                    Box(
+                        modifier = Modifier.background(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White
+                        )
+                    ) {
+
+                        Column(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.Center,
+
+                            ) {
+                            Text(text = "Material Dialog")
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(text = "This is a simple Material Dialog.")
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { onDismiss() },
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                Text("OK")
+                            }
+                        }
+
                     }
+
                 },
-                shape = RectangleShape
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    dismissOnBackPress = false
+                )
+
             )
         }
+
+
     }
+
+
 }
+
+
+
+
+
+
+
 
 
 
