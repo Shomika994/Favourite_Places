@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.Image
@@ -75,7 +76,7 @@ import java.time.format.DateTimeFormatter
 
 class AddPlace : AppCompatActivity() {
 
-
+    private val viewModel by viewModels<DialogViewModel> ()
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -375,65 +376,9 @@ class AddPlace : AppCompatActivity() {
         }
 
         if (permissionState.allPermissionsGranted) {
-
-            MyDialog(onDismiss = { showDialog = false }, showDialog = showDialog)
-
+            MainScreen(viewModel = viewModel)
         }
-
-
     }
-
-    @Composable
-    fun MyDialog(
-        onDismiss: () -> Unit,
-        showDialog: Boolean
-    ) {
-
-        if (showDialog) {
-
-            Dialog(
-                onDismissRequest = { onDismiss() },
-                content = {
-                    Box(
-                        modifier = Modifier.background(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color.White
-                        )
-                    ) {
-
-                        Column(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            verticalArrangement = Arrangement.Center,
-
-                            ) {
-                            Text(text = "Material Dialog")
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(text = "This is a simple Material Dialog.")
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { onDismiss() },
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
-                            ) {
-                                Text("OK")
-                            }
-                        }
-
-                    }
-
-                },
-                properties = DialogProperties(
-                    dismissOnClickOutside = false,
-                    dismissOnBackPress = false
-                )
-
-            )
-        }
-
-
-    }
-
 
 }
 
