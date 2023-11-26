@@ -1,4 +1,4 @@
-package com.example.favouriteplaces
+package com.example.favouriteplaces.activities
 
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding?.toolbarMainActivity)
 
         binding?.floatingActionButton?.setOnClickListener {
-            val intent = Intent(this, AddPlace::class.java)
+            val intent = Intent(this, AddPlaceActivity::class.java)
             startActivity(intent)
         }
 
