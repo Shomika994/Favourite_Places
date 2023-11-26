@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -69,7 +70,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
-import com.example.favouriteplaces.R
+import com.example.com.example.favouriteplaces.R
+import com.example.favouriteplaces.database.DatabaseHandler
+import com.example.favouriteplaces.models.FavouritePlaceModel
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
@@ -108,7 +111,6 @@ class AddPlaceActivity : AppCompatActivity() {
         setContent {
             AddFavouritePlaceScreen()
         }
-
 
     }
 
@@ -189,7 +191,8 @@ class AddPlaceActivity : AppCompatActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
 
             ) {
-            OutlinedTextField(value = titleText.value,
+            OutlinedTextField(
+                value = titleText.value,
                 onValueChange = { titleText.value = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth()
@@ -197,7 +200,8 @@ class AddPlaceActivity : AppCompatActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(value = descriptionText.value,
+            OutlinedTextField(
+                value = descriptionText.value,
                 onValueChange = { descriptionText.value = it },
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth()
@@ -251,7 +255,8 @@ class AddPlaceActivity : AppCompatActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(value = locationText.value,
+            OutlinedTextField(
+                value = locationText.value,
                 onValueChange = { locationText.value = it },
                 label = { Text("Location") },
                 enabled = true,
@@ -290,33 +295,79 @@ class AddPlaceActivity : AppCompatActivity() {
                         permissionsDeniedBoolean = false
                     }
 
-                    when {
-                        ContextCompat.checkSelfPermission(
+                    if (ContextCompat.checkSelfPermission(
                             applicationContext, Manifest.permission.CAMERA
                         ) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(
                             applicationContext, Manifest.permission.READ_MEDIA_IMAGES
-                        ) == PackageManager.PERMISSION_GRANTED -> {
-                            permissionsDeniedBoolean = false
-                            allPermissionsGrantedDialog = true
-                        }
-
-                        ContextCompat.checkSelfPermission(
-                            applicationContext, Manifest.permission.CAMERA
-                        ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
-                            applicationContext, Manifest.permission.READ_MEDIA_IMAGES
-                        ) == PackageManager.PERMISSION_DENIED -> {
-                            permissionsDeniedBoolean = true
-                            allPermissionsGrantedDialog = false
-                        }
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        permissionsDeniedBoolean = false
+                        allPermissionsGrantedDialog = true
                     }
-
                 })
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
+                    when {
+                        titleText.value.isEmpty() -> {
+                            Toast.makeText(
+                                applicationContext,
+                                "Please enter title",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
 
+                        descriptionText.value.isEmpty() -> {
+                            Toast.makeText(
+                                applicationContext,
+                                "Please enter description",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        locationText.value.isEmpty() -> {
+                            Toast.makeText(
+                                applicationContext,
+                                "Please enter location",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        saveImageToInternalStorage == null -> {
+                            Toast.makeText(
+                                applicationContext,
+                                "Please select an image",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+
+                        else -> {
+                            val favouritePlaceModel = FavouritePlaceModel(
+                                0,
+                                titleText.toString(),
+                                saveImageToInternalStorage.toString(),
+                                descriptionText.toString(),
+                                date,
+                                locationText.toString(),
+                                latitude,
+                                longitude
+                            )
+                            val databaseHandler = DatabaseHandler(this@AddPlaceActivity)
+                            val favouritePlaceResult =
+                                databaseHandler.addFavouritePlace(favouritePlaceModel)
+
+                            if (favouritePlaceResult > 0) {
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Favourite place added!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                finish()
+                            }
+                        }
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(backgroundColor = primaryColor),
                 modifier = Modifier
@@ -343,7 +394,6 @@ class AddPlaceActivity : AppCompatActivity() {
 
     @Composable
     private fun SelectActionDialog(image: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>) {
-
 
         if (dialogsShown) {
             Dialog(onDismissRequest = { dialogsShown = false }, content = {
@@ -446,17 +496,37 @@ class AddPlaceActivity : AppCompatActivity() {
             .setMessage("It Looks like you have turned off permissions required for this feature. It can be enabled under Application Settings")
             .setPositiveButton("GO TO SETTINGS") { _, _ ->
                 try {
-                    permissionsDeniedBoolean = false
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                     val uri = Uri.fromParts("package", packageName, null)
                     intent.data = uri
                     startActivity(intent)
+                    permissionsDeniedBoolean = false
                 } catch (e: ActivityNotFoundException) {
                     e.printStackTrace()
                 }
             }.setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
-            }.setCancelable(true).setOnCancelListener { permissionsDeniedBoolean = true }.show()
+                if (ContextCompat.checkSelfPermission(
+                        applicationContext, Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
+                        applicationContext, Manifest.permission.READ_MEDIA_IMAGES
+                    ) == PackageManager.PERMISSION_DENIED
+                ) {
+                    permissionsDeniedBoolean = true
+                    allPermissionsGrantedDialog = false
+                }
+            }.setCancelable(true)
+            .setOnCancelListener {
+                if (ContextCompat.checkSelfPermission(
+                        applicationContext, Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
+                        applicationContext, Manifest.permission.READ_MEDIA_IMAGES
+                    ) == PackageManager.PERMISSION_DENIED
+                ) {
+                    permissionsDeniedBoolean = true
+                    allPermissionsGrantedDialog = false
+                }
+            }.show()
     }
 
     private fun saveImageToInternalStorage(bitmap: Bitmap): Uri {

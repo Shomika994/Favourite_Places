@@ -1,4 +1,4 @@
-package models
+package com.example.favouriteplaces.models
 
 data class FavouritePlaceModel(
     val id: Int,

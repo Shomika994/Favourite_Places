@@ -3,7 +3,7 @@ package com.example.favouriteplaces.activities
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import com.example.favouriteplaces.databinding.ActivityMainBinding
+import com.example.com.example.favouriteplaces.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 

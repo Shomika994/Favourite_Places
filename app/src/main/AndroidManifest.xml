@@ -21,17 +21,16 @@
         android:theme="@style/Theme.FavouritePlaces"
         tools:targetApi="31">
         <activity
-            android:name=".activities.AddPlaceActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:label="ADD PLACE"
-            android:theme="@style/CustomNoActionTheme"/>
+            android:theme="@style/CustomNoActionTheme"
+            android:name="com.example.favouriteplaces.activities.AddPlaceActivity" />
         <activity
-            android:name=".activities.MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:name="com.example.favouriteplaces.activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

@@ -1,20 +1,20 @@
-package database
+package com.example.favouriteplaces.database
 
 
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import models.FavouritePlaceModel
+import com.example.favouriteplaces.models.FavouritePlaceModel
 
 
 class DatabaseHandler(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
-        private const val DATABASE_VERSION = 1 // Database version
-        private const val DATABASE_NAME = "HappyPlacesDatabase" // Database name
-        private const val TABLE_HAPPY_PLACE = "HappyPlacesTable" // Table Name
+        private const val DATABASE_VERSION = 1
+        private const val DATABASE_NAME = "HappyPlacesDatabase"
+        private const val TABLE_FAVOURITE_PLACE = "HappyPlacesTable"
 
         private const val KEY_ID = "_id"
         private const val KEY_TITLE = "title"
@@ -28,7 +28,7 @@ class DatabaseHandler(context: Context) :
 
     override fun onCreate(db: SQLiteDatabase?) {
 
-        val CREATE_FAVOURITE_PLACE_TABLE = ("CREATE TABLE " + TABLE_HAPPY_PLACE + "("
+        val CREATE_FAVOURITE_PLACE_TABLE = ("CREATE TABLE " + TABLE_FAVOURITE_PLACE + "("
                 + KEY_ID + " INTEGER PRIMARY KEY,"
                 + KEY_TITLE + " TEXT,"
                 + KEY_IMAGE + " TEXT,"
@@ -41,26 +41,26 @@ class DatabaseHandler(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
-        db!!.execSQL("DROP TABLE IF EXISTS $TABLE_HAPPY_PLACE")
+        db!!.execSQL("DROP TABLE IF EXISTS $TABLE_FAVOURITE_PLACE")
         onCreate(db)
     }
 
-    fun addFavouritePlace(happyPlace: FavouritePlaceModel): Long {
+    fun addFavouritePlace(favouritePlace: FavouritePlaceModel): Long {
         val db = this.writableDatabase
 
         val contentValues = ContentValues()
-        contentValues.put(KEY_TITLE, happyPlace.title) // HappyPlaceModelClass TITLE
-        contentValues.put(KEY_IMAGE, happyPlace.image) // HappyPlaceModelClass IMAGE
+        contentValues.put(KEY_TITLE, favouritePlace.title)
+        contentValues.put(KEY_IMAGE, favouritePlace.image)
         contentValues.put(
             KEY_DESCRIPTION,
-            happyPlace.description
+            favouritePlace.description
         )
-        contentValues.put(KEY_DATE, happyPlace.date)
-        contentValues.put(KEY_LOCATION, happyPlace.location)
-        contentValues.put(KEY_LATITUDE, happyPlace.latitude)
-        contentValues.put(KEY_LONGITUDE, happyPlace.longitude)
+        contentValues.put(KEY_DATE, favouritePlace.date)
+        contentValues.put(KEY_LOCATION, favouritePlace.location)
+        contentValues.put(KEY_LATITUDE, favouritePlace.latitude)
+        contentValues.put(KEY_LONGITUDE, favouritePlace.longitude)
 
-        val result = db.insert(TABLE_HAPPY_PLACE, null, contentValues)
+        val result = db.insert(TABLE_FAVOURITE_PLACE, null, contentValues)
 
         db.close()
         return result
