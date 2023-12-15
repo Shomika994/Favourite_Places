@@ -1,7 +1,12 @@
 package com.example.favouriteplaces.models
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "favouritePlaces")
 data class FavouritePlaceModel(
-    val id: Int,
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
     val title: String,
     val image: String,
     val description: String,

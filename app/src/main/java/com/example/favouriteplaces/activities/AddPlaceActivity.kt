@@ -71,7 +71,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.com.example.favouriteplaces.R
-import com.example.favouriteplaces.database.DatabaseHandler
+import com.example.favouriteplaces.FavouritePlacesManager
 import com.example.favouriteplaces.models.FavouritePlaceModel
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
@@ -81,7 +81,6 @@ import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.DatePickerColors
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
-import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -97,6 +96,7 @@ class AddPlaceActivity : AppCompatActivity() {
     private var dialogsShown by mutableStateOf(false)
     private var allPermissionsGrantedDialog by mutableStateOf(false)
     private var permissionsDeniedBoolean by mutableStateOf(false)
+    private var checkIfUserChangedPermissions by mutableStateOf(false)
     private var photoTakenByCameraBoolean by mutableStateOf(false)
     private var selectedImageUri by mutableStateOf<Uri?>(null)
     private var takenImageBitmap by mutableStateOf<Bitmap?>(null)
@@ -295,6 +295,19 @@ class AddPlaceActivity : AppCompatActivity() {
                         permissionsDeniedBoolean = false
                     }
 
+                    if (checkIfUserChangedPermissions){
+                        if (ContextCompat.checkSelfPermission(
+                                applicationContext, Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
+                                applicationContext, Manifest.permission.READ_MEDIA_IMAGES
+                            ) == PackageManager.PERMISSION_DENIED
+                        ) {
+                            permissionsDeniedBoolean = true
+                            allPermissionsGrantedDialog = false
+                        }
+                        checkIfUserChangedPermissions = false
+                    }
+
                     if (ContextCompat.checkSelfPermission(
                             applicationContext, Manifest.permission.CAMERA
                         ) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(
@@ -344,7 +357,8 @@ class AddPlaceActivity : AppCompatActivity() {
                         }
 
                         else -> {
-                            val favouritePlaceModel = FavouritePlaceModel(
+
+                            val favouritePlace = FavouritePlaceModel(
                                 0,
                                 titleText.toString(),
                                 saveImageToInternalStorage.toString(),
@@ -354,18 +368,15 @@ class AddPlaceActivity : AppCompatActivity() {
                                 latitude,
                                 longitude
                             )
-                            val databaseHandler = DatabaseHandler(this@AddPlaceActivity)
-                            val favouritePlaceResult =
-                                databaseHandler.addFavouritePlace(favouritePlaceModel)
 
-                            if (favouritePlaceResult > 0) {
-                                Toast.makeText(
+                            FavouritePlacesManager.addFavouritePlace(favouritePlace)
+
+                            Toast.makeText(
                                     applicationContext,
                                     "Favourite place added!",
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 finish()
-                            }
                         }
                     }
                 },
@@ -388,7 +399,6 @@ class AddPlaceActivity : AppCompatActivity() {
                 SelectActionDialog(image = singlePhotoPickerLauncher)
             }
         }
-
 
     }
 
@@ -496,36 +506,20 @@ class AddPlaceActivity : AppCompatActivity() {
             .setMessage("It Looks like you have turned off permissions required for this feature. It can be enabled under Application Settings")
             .setPositiveButton("GO TO SETTINGS") { _, _ ->
                 try {
+                    checkIfUserChangedPermissions = true
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                     val uri = Uri.fromParts("package", packageName, null)
                     intent.data = uri
                     startActivity(intent)
-                    permissionsDeniedBoolean = false
                 } catch (e: ActivityNotFoundException) {
                     e.printStackTrace()
                 }
             }.setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
-                if (ContextCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.READ_MEDIA_IMAGES
-                    ) == PackageManager.PERMISSION_DENIED
-                ) {
-                    permissionsDeniedBoolean = true
-                    allPermissionsGrantedDialog = false
-                }
+                checkIfUserChangedPermissions = true
             }.setCancelable(true)
             .setOnCancelListener {
-                if (ContextCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.READ_MEDIA_IMAGES
-                    ) == PackageManager.PERMISSION_DENIED
-                ) {
-                    permissionsDeniedBoolean = true
-                    allPermissionsGrantedDialog = false
-                }
+                checkIfUserChangedPermissions = false
             }.show()
     }
 
@@ -550,7 +544,6 @@ class AddPlaceActivity : AppCompatActivity() {
 
     companion object {
         private const val CAMERA = 1
-        private const val GALLERY = 2
         private const val IMAGE_DIRECTORY = "FavouritePlacesImages"
     }
 
