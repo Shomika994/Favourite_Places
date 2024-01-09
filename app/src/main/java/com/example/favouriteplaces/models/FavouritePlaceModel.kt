@@ -11,6 +11,7 @@ data class FavouritePlaceModel(
     val image: String,
     val description: String,
     val date: String,
+    val savedAt: Long,
     val location: String,
     val latitude: Double,
     val longitude: Double

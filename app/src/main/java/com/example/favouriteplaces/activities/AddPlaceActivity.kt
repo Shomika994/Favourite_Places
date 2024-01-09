@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import coil.compose.AsyncImage
 import com.example.com.example.favouriteplaces.R
 import com.example.favouriteplaces.FavouritePlacesManager
@@ -81,12 +82,14 @@ import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.DatePickerColors
 import com.vanpra.composematerialdialogs.datetime.date.datepicker
 import com.vanpra.composematerialdialogs.rememberMaterialDialogState
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.OutputStream
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Date
 import java.util.UUID
 
 
@@ -100,7 +103,7 @@ class AddPlaceActivity : AppCompatActivity() {
     private var photoTakenByCameraBoolean by mutableStateOf(false)
     private var selectedImageUri by mutableStateOf<Uri?>(null)
     private var takenImageBitmap by mutableStateOf<Bitmap?>(null)
-    private var saveImageToInternalStorage: Uri? = null
+    private var imageUri: Uri? = null
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
 
@@ -173,16 +176,16 @@ class AddPlaceActivity : AppCompatActivity() {
         }
         val dateDialogState = rememberMaterialDialogState()
         var date = formattedDate
-        val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia(),
-            onResult = { uri ->
-                selectedImageUri = uri
-                if (uri != null) {
-                    val bitmap = ImagingHelper.loadBitmap(this@AddPlaceActivity, uri)
-                    saveImageToInternalStorage = saveImageToInternalStorage(bitmap)
-                    Log.e("Saved Image : ", "Path :: $saveImageToInternalStorage")
-                }
-            })
+        val singlePhotoPickerLauncher =
+            rememberLauncherForActivityResult(contract = ActivityResultContracts.PickVisualMedia(),
+                onResult = { uri ->
+                    selectedImageUri = uri
+                    if (uri != null) {
+                        val bitmap = ImagingHelper.loadBitmap(this@AddPlaceActivity, uri)
+                        imageUri = saveImageToInternalStorage(bitmap)
+                        Log.e("Saved Image : ", "Path :: $imageUri")
+                    }
+                })
 
         Column(
             modifier = Modifier
@@ -191,8 +194,7 @@ class AddPlaceActivity : AppCompatActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
 
             ) {
-            OutlinedTextField(
-                value = titleText.value,
+            OutlinedTextField(value = titleText.value,
                 onValueChange = { titleText.value = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth()
@@ -200,8 +202,7 @@ class AddPlaceActivity : AppCompatActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = descriptionText.value,
+            OutlinedTextField(value = descriptionText.value,
                 onValueChange = { descriptionText.value = it },
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth()
@@ -255,8 +256,7 @@ class AddPlaceActivity : AppCompatActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = locationText.value,
+            OutlinedTextField(value = locationText.value,
                 onValueChange = { locationText.value = it },
                 label = { Text("Location") },
                 enabled = true,
@@ -276,7 +276,7 @@ class AddPlaceActivity : AppCompatActivity() {
                     .background(Color.White)
                     .align(Alignment.CenterHorizontally)
                     .border(2.dp, Color.Blue, shape = RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.FillBounds
+                contentScale = ContentScale.Crop
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -295,7 +295,7 @@ class AddPlaceActivity : AppCompatActivity() {
                         permissionsDeniedBoolean = false
                     }
 
-                    if (checkIfUserChangedPermissions){
+                    if (checkIfUserChangedPermissions) {
                         if (ContextCompat.checkSelfPermission(
                                 applicationContext, Manifest.permission.CAMERA
                             ) == PackageManager.PERMISSION_DENIED || ContextCompat.checkSelfPermission(
@@ -326,33 +326,25 @@ class AddPlaceActivity : AppCompatActivity() {
                     when {
                         titleText.value.isEmpty() -> {
                             Toast.makeText(
-                                applicationContext,
-                                "Please enter title",
-                                Toast.LENGTH_SHORT
+                                applicationContext, "Please enter title", Toast.LENGTH_SHORT
                             ).show()
                         }
 
                         descriptionText.value.isEmpty() -> {
                             Toast.makeText(
-                                applicationContext,
-                                "Please enter description",
-                                Toast.LENGTH_SHORT
+                                applicationContext, "Please enter description", Toast.LENGTH_SHORT
                             ).show()
                         }
 
                         locationText.value.isEmpty() -> {
                             Toast.makeText(
-                                applicationContext,
-                                "Please enter location",
-                                Toast.LENGTH_SHORT
+                                applicationContext, "Please enter location", Toast.LENGTH_SHORT
                             ).show()
                         }
 
-                        saveImageToInternalStorage == null -> {
+                        imageUri == null -> {
                             Toast.makeText(
-                                applicationContext,
-                                "Please select an image",
-                                Toast.LENGTH_SHORT
+                                applicationContext, "Please select an image", Toast.LENGTH_SHORT
                             ).show()
                         }
 
@@ -360,23 +352,27 @@ class AddPlaceActivity : AppCompatActivity() {
 
                             val favouritePlace = FavouritePlaceModel(
                                 0,
-                                titleText.toString(),
-                                saveImageToInternalStorage.toString(),
-                                descriptionText.toString(),
+                                titleText.value,
+                                imageUri.toString(),
+                                descriptionText.value,
                                 date,
-                                locationText.toString(),
+                                Date().time,
+                                locationText.value,
                                 latitude,
                                 longitude
                             )
 
-                            FavouritePlacesManager.addFavouritePlace(favouritePlace)
+                            lifecycleScope.launch {
+                                FavouritePlacesManager.addFavouritePlace(
+                                    favouritePlace,
+                                    applicationContext
+                                )
+                            }
 
                             Toast.makeText(
-                                    applicationContext,
-                                    "Favourite place added!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                finish()
+                                applicationContext, "Favourite place added!", Toast.LENGTH_SHORT
+                            ).show()
+                            finish()
                         }
                     }
                 },
@@ -462,8 +458,8 @@ class AddPlaceActivity : AppCompatActivity() {
             requestCode == CAMERA && resultCode == Activity.RESULT_OK -> {
                 val thumbnail: Bitmap = data!!.extras!!.get("data") as Bitmap
                 takenImageBitmap = thumbnail
-                saveImageToInternalStorage = saveImageToInternalStorage(thumbnail)
-                Log.e("Saved Image : ", "Path :: $saveImageToInternalStorage")
+                imageUri = saveImageToInternalStorage(thumbnail)
+                Log.e("Saved Image : ", "Path :: $imageUri")
                 photoTakenByCameraBoolean = true
             }
 
@@ -517,8 +513,7 @@ class AddPlaceActivity : AppCompatActivity() {
             }.setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
                 checkIfUserChangedPermissions = true
-            }.setCancelable(true)
-            .setOnCancelListener {
+            }.setCancelable(true).setOnCancelListener {
                 checkIfUserChangedPermissions = false
             }.show()
     }

@@ -24,6 +24,6 @@ interface FavouritePlaceDao {
     @Query("SELECT * from favouritePlaces WHERE id = :id")
     fun getFavouritePlace(id: Int): Flow<FavouritePlaceModel>
 
-    @Query("SELECT * from favouritePlaces ORDER BY title ASC")
+    @Query("SELECT * from favouritePlaces ORDER BY date DESC")
     fun getAllData(): Flow<List<FavouritePlaceModel>>
 }

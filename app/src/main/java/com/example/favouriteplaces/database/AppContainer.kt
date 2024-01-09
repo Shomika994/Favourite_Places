@@ -3,7 +3,6 @@ package com.example.favouriteplaces.database
 import android.content.Context
 
 interface AppContainer {
-
     val favouritePlacesRepository: FavouritePlacesRepository
 }
 

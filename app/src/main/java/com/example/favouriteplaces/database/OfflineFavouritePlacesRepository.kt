@@ -6,24 +6,23 @@ import kotlinx.coroutines.flow.Flow
 class OfflineFavouritePlacesRepository(private val favouritePlaceDao: FavouritePlaceDao): FavouritePlacesRepository {
 
     override fun getAllFavouritePlacesStream(): Flow<List<FavouritePlaceModel>> {
-        TODO("Not yet implemented")
+       return favouritePlaceDao.getAllData()
     }
 
     override fun getFavouritePlacesStream(id: Int): Flow<FavouritePlaceModel?> {
-        TODO("Not yet implemented")
+        return favouritePlaceDao.getFavouritePlace(id)
     }
 
     override suspend fun insertFavouritePlace(item: FavouritePlaceModel) {
-        TODO("Not yet implemented")
+        favouritePlaceDao.insert(item)
     }
 
     override suspend fun deleteFavouritePlace(item: FavouritePlaceModel) {
-        TODO("Not yet implemented")
+        favouritePlaceDao.delete(item)
     }
 
     override suspend fun updateFavouritePlace(item: FavouritePlaceModel) {
-        TODO("Not yet implemented")
+        favouritePlaceDao.update(item)
     }
-
 
 }
