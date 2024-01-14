@@ -176,16 +176,16 @@ class AddPlaceActivity : AppCompatActivity() {
         }
         val dateDialogState = rememberMaterialDialogState()
         var date = formattedDate
-        val singlePhotoPickerLauncher =
-            rememberLauncherForActivityResult(contract = ActivityResultContracts.PickVisualMedia(),
-                onResult = { uri ->
-                    selectedImageUri = uri
-                    if (uri != null) {
-                        val bitmap = ImagingHelper.loadBitmap(this@AddPlaceActivity, uri)
-                        imageUri = saveImageToInternalStorage(bitmap)
-                        Log.e("Saved Image : ", "Path :: $imageUri")
-                    }
-                })
+        val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia(),
+            onResult = { uri ->
+                selectedImageUri = uri
+                if (uri != null) {
+                    val bitmap = ImagingHelper.loadBitmap(this@AddPlaceActivity, uri)
+                    imageUri = saveImageToInternalStorage(bitmap)
+                    Log.e("Saved Image : ", "Path :: $imageUri")
+                }
+            })
 
         Column(
             modifier = Modifier
@@ -276,7 +276,7 @@ class AddPlaceActivity : AppCompatActivity() {
                     .background(Color.White)
                     .align(Alignment.CenterHorizontally)
                     .border(2.dp, Color.Blue, shape = RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Inside,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -364,8 +364,7 @@ class AddPlaceActivity : AppCompatActivity() {
 
                             lifecycleScope.launch {
                                 FavouritePlacesManager.addFavouritePlace(
-                                    favouritePlace,
-                                    applicationContext
+                                    favouritePlace, applicationContext
                                 )
                             }
 
