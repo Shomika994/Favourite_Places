@@ -37,10 +37,35 @@ object FavouritePlacesManager {
             currentList + favouritePlace
         }
 
+
     }
 
-    fun getFavouritePlaces(): List<FavouritePlaceModel> {
+    suspend fun deleteFavouritePlace(favouritePlaceId: Int) {
 
+        val placeToDelete = favouritePlaces.value.find { it.id == favouritePlaceId }
+
+        placeToDelete?.let {
+            dataContainer?.favouritePlacesRepository?.deleteFavouritePlace(it)
+            _favouritePlaces.update { currentList ->
+                currentList.filterNot { place -> place.id == placeToDelete.id }
+            }
+        }
+    }
+
+    suspend fun updateFavouritePlace(
+        placeToEdit: FavouritePlaceModel,
+        context: Context
+    ) {
+        dataContainer = dataContainer ?: AppDataContainer(context)
+        dataContainer?.favouritePlacesRepository?.updateFavouritePlace(placeToEdit)
+        _favouritePlaces.update { currentList ->
+            currentList + placeToEdit
+        }
+
+    }
+
+
+    fun getFavouritePlaces(): List<FavouritePlaceModel> {
         return favouritePlaces.value
     }
 }

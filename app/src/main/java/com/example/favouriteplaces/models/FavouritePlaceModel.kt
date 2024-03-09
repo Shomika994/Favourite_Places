@@ -2,11 +2,12 @@ package com.example.favouriteplaces.models
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.io.Serializable
 
 @Entity(tableName = "favouritePlaces")
 data class FavouritePlaceModel(
     @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    var id: Int = 0,
     val title: String,
     val image: String,
     val description: String,
@@ -15,4 +16,4 @@ data class FavouritePlaceModel(
     val location: String,
     val latitude: Double,
     val longitude: Double
-)
+): Serializable

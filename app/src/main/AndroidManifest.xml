@@ -2,13 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-
     <uses-feature
         android:name="android.hardware.camera"
         android:required="true" />
+
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -20,17 +22,36 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FavouritePlaces"
         tools:targetApi="31">
+
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${GOOGLE_MAPS_API_KEY}" />
+
         <activity
+            android:name="com.example.favouriteplaces.activities.AddPlaceActivity"
             android:exported="false"
-            android:screenOrientation="portrait"
             android:label="ADD PLACE"
-            android:theme="@style/CustomNoActionTheme"
-            android:name="com.example.favouriteplaces.activities.AddPlaceActivity" />
+            android:screenOrientation="portrait"
+            android:theme="@style/CustomNoActionTheme" />
         <activity
-            android:exported="true"
-            android:name="com.example.favouriteplaces.activities.MainActivity">
+            android:name="com.example.favouriteplaces.activities.ShowSavedPlace"
+            android:exported="false"
+            android:label="SHOW FINAL PLACE"
+            android:screenOrientation="portrait"
+            android:theme="@style/CustomNoActionTheme" />
+        <activity
+            android:name="com.example.favouriteplaces.activities.MapActivity"
+            android:exported="false"
+            android:label="GOOGLE MAP"
+            android:screenOrientation="portrait"
+            android:theme="@style/CustomNoActionTheme" />
+        <activity
+            android:name="com.example.favouriteplaces.activities.MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

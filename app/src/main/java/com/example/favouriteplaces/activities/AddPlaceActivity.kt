@@ -2,6 +2,7 @@ package com.example.favouriteplaces.activities
 
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
@@ -10,9 +11,12 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.location.Location
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
@@ -36,10 +40,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
@@ -62,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -71,12 +78,24 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import coil.compose.AsyncImage
+import com.example.com.example.favouriteplaces.BuildConfig
 import com.example.com.example.favouriteplaces.R
 import com.example.favouriteplaces.FavouritePlacesManager
 import com.example.favouriteplaces.models.FavouritePlaceModel
+import com.example.favouriteplaces.utils.GetAddressFromLatLng
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.widget.Autocomplete
+import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
+import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import com.vanpra.composematerialdialogs.MaterialDialog
 import com.vanpra.composematerialdialogs.datetime.date.DatePickerColors
@@ -97,24 +116,48 @@ class AddPlaceActivity : AppCompatActivity() {
 
     private var addImageClicked by mutableStateOf(false)
     private var dialogsShown by mutableStateOf(false)
-    private var allPermissionsGrantedDialog by mutableStateOf(false)
+    private var storageAndCameraPermissions by mutableStateOf(false)
     private var permissionsDeniedBoolean by mutableStateOf(false)
     private var checkIfUserChangedPermissions by mutableStateOf(false)
     private var photoTakenByCameraBoolean by mutableStateOf(false)
     private var selectedImageUri by mutableStateOf<Uri?>(null)
     private var takenImageBitmap by mutableStateOf<Bitmap?>(null)
+    private var location by mutableStateOf("")
     private var imageUri: Uri? = null
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
+    private lateinit var favouritePlace: FavouritePlaceModel
+    private var placeToEdit: FavouritePlaceModel? = null
+    private val locationPermissionGranted = mutableStateOf(false)
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val retFavPlace = intent.getSerializableExtra("favPlace") as? FavouritePlaceModel
+
+        placeToEdit = retFavPlace
+
+        val key = BuildConfig.GOOGLE_MAPS_API_KEY
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        if (!Places.isInitialized()) {
+            Places.initialize(this@AddPlaceActivity, key)
+        }
+
         setContent {
             AddFavouritePlaceScreen()
         }
 
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    @Preview
+    @Composable
+    fun MyPreview() {
+        AddFavouritePlaceScreen()
     }
 
 
@@ -152,22 +195,16 @@ class AddPlaceActivity : AppCompatActivity() {
     }
 
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    @Preview
-    @Composable
-    fun MyPreview() {
-        AddFavouritePlaceScreen()
-    }
-
+    @SuppressLint("SuspiciousIndentation")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @Composable
     private fun AddFavouritePlaceContent() {
-        val titleText = remember { mutableStateOf("") }
-        val descriptionText = remember { mutableStateOf("") }
+
+        val titleText = remember { mutableStateOf(placeToEdit?.title.orEmpty()) }
+        val descriptionText = remember { mutableStateOf(placeToEdit?.description.orEmpty()) }
         val primaryColor = colorResource(id = R.color.colorPrimary)
         val colorBlack = colorResource(id = R.color.black)
         val colorWhite = colorResource(id = R.color.white)
-        val locationText = remember { mutableStateOf("") }
         var datePicked by remember { mutableStateOf(LocalDate.now()) }
         val formattedDate by remember {
             derivedStateOf {
@@ -187,6 +224,7 @@ class AddPlaceActivity : AppCompatActivity() {
                 }
             })
 
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -194,7 +232,8 @@ class AddPlaceActivity : AppCompatActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
 
             ) {
-            OutlinedTextField(value = titleText.value,
+            OutlinedTextField(
+                value = titleText.value,
                 onValueChange = { titleText.value = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth()
@@ -202,7 +241,8 @@ class AddPlaceActivity : AppCompatActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(value = descriptionText.value,
+            OutlinedTextField(
+                value = descriptionText.value,
                 onValueChange = { descriptionText.value = it },
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth()
@@ -256,19 +296,88 @@ class AddPlaceActivity : AppCompatActivity() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(value = locationText.value,
-                onValueChange = { locationText.value = it },
+            OutlinedTextField(
+                value = location,
+                onValueChange = { location = it },
                 label = { Text("Location") },
-                enabled = true,
-                modifier = Modifier.fillMaxWidth()
+                textStyle = TextStyle(color = Color.Black),
+                readOnly = true,
+                enabled = false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        try {
+                            val fields = listOf(
+                                Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG,
+                                Place.Field.ADDRESS
+                            )
+                            val intent =
+                                Autocomplete
+                                    .IntentBuilder(AutocompleteActivityMode.FULLSCREEN, fields)
+                                    .build(this@AddPlaceActivity)
+                            startActivityForResult(intent, MAPS_REQUEST_KEY)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            Text(text = "Set current location",
+                maxLines = 1,
+                style = MaterialTheme.typography.h6.copy(fontStyle = FontStyle.Normal),
+                color = primaryColor,
+                modifier = Modifier
+                    .wrapContentWidth(align = Alignment.CenterHorizontally)
+                    .clickable {
+
+                        if (!isLocationEnabled()) {
+                            Toast
+                                .makeText(
+                                    applicationContext,
+                                    "Your location provider is turned off. Please turn it on.",
+                                    Toast.LENGTH_SHORT
+                                )
+                                .show()
+                            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                            startActivity(intent)
+                        } else {
+                            Dexter
+                                .withActivity(this@AddPlaceActivity)
+                                .withPermissions(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                                .withListener(object : MultiplePermissionsListener {
+                                    override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
+                                        if (report!!.areAllPermissionsGranted()) {
+                                            requestNewLocationData()
+                                        }
+                                    }
+
+                                    override fun onPermissionRationaleShouldBeShown(
+                                        permissions: MutableList<PermissionRequest>?,
+                                        token: PermissionToken?
+                                    ) {
+                                        showRationaleDialogForPermission()
+                                    }
+                                })
+                                .onSameThread()
+                                .check()
+                        }
+
+                    })
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             AsyncImage(
-                model = if (photoTakenByCameraBoolean) {
-                    takenImageBitmap
-                } else selectedImageUri,
+                model =
+                placeToEdit?.image ?: run {
+                    if (photoTakenByCameraBoolean) {
+                        takenImageBitmap
+                    } else selectedImageUri
+                },
                 contentDescription = "SelectedImage",
                 modifier = Modifier
                     .size(200.dp)
@@ -276,7 +385,7 @@ class AddPlaceActivity : AppCompatActivity() {
                     .background(Color.White)
                     .align(Alignment.CenterHorizontally)
                     .border(2.dp, Color.Blue, shape = RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Inside,
+                contentScale = ContentScale.FillBounds,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -303,7 +412,7 @@ class AddPlaceActivity : AppCompatActivity() {
                             ) == PackageManager.PERMISSION_DENIED
                         ) {
                             permissionsDeniedBoolean = true
-                            allPermissionsGrantedDialog = false
+                            storageAndCameraPermissions = false
                         }
                         checkIfUserChangedPermissions = false
                     }
@@ -315,7 +424,7 @@ class AddPlaceActivity : AppCompatActivity() {
                         ) == PackageManager.PERMISSION_GRANTED
                     ) {
                         permissionsDeniedBoolean = false
-                        allPermissionsGrantedDialog = true
+                        storageAndCameraPermissions = true
                     }
                 })
 
@@ -336,13 +445,13 @@ class AddPlaceActivity : AppCompatActivity() {
                             ).show()
                         }
 
-                        locationText.value.isEmpty() -> {
+                        location.isEmpty() -> {
                             Toast.makeText(
                                 applicationContext, "Please enter location", Toast.LENGTH_SHORT
                             ).show()
                         }
 
-                        imageUri == null -> {
+                        imageUri == null && placeToEdit == null -> {
                             Toast.makeText(
                                 applicationContext, "Please select an image", Toast.LENGTH_SHORT
                             ).show()
@@ -350,27 +459,35 @@ class AddPlaceActivity : AppCompatActivity() {
 
                         else -> {
 
-                            val favouritePlace = FavouritePlaceModel(
-                                0,
+                            favouritePlace = FavouritePlaceModel(
+                                placeToEdit?.id ?: 0,
                                 titleText.value,
                                 imageUri.toString(),
                                 descriptionText.value,
                                 date,
                                 Date().time,
-                                locationText.value,
+                                location,
                                 latitude,
                                 longitude
                             )
 
                             lifecycleScope.launch {
-                                FavouritePlacesManager.addFavouritePlace(
-                                    favouritePlace, applicationContext
-                                )
+                                placeToEdit?.let {
+                                    FavouritePlacesManager.updateFavouritePlace(
+                                        favouritePlace, applicationContext
+                                    )
+                                } ?: run {
+                                    FavouritePlacesManager.addFavouritePlace(
+                                        favouritePlace, applicationContext
+                                    )
+                                }
                             }
 
                             Toast.makeText(
                                 applicationContext, "Favourite place added!", Toast.LENGTH_SHORT
                             ).show()
+                            val intent = Intent(this@AddPlaceActivity, MainActivity::class.java)
+                            startActivity(intent)
                             finish()
                         }
                     }
@@ -390,13 +507,67 @@ class AddPlaceActivity : AppCompatActivity() {
         }
         if (dialogsShown) {
             getPermission(context = this)
-            if (allPermissionsGrantedDialog) {
+            if (storageAndCameraPermissions) {
                 SelectActionDialog(image = singlePhotoPickerLauncher)
             }
         }
 
+
     }
 
+    private fun isLocationEnabled(): Boolean {
+        val locationManager: LocationManager =
+            getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(
+            LocationManager.NETWORK_PROVIDER
+        )
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestNewLocationData() {
+
+        val mLocationRequest = LocationRequest()
+        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        mLocationRequest.interval = 0
+        mLocationRequest.fastestInterval = 0
+        mLocationRequest.numUpdates = 1
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        fusedLocationClient.requestLocationUpdates(
+            mLocationRequest, locationCallback,
+            Looper.myLooper()
+        )
+    }
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            val lastLocation: Location? = locationResult.lastLocation
+            latitude = lastLocation!!.latitude
+            longitude = lastLocation.longitude
+
+            val addressTask =
+                GetAddressFromLatLng(this@AddPlaceActivity, latitude, longitude)
+
+            addressTask.setAddressListener(object :
+                GetAddressFromLatLng.AddressListener {
+                override fun onAddressFound(address: String?) {
+                    Log.e("Address ::", "" + address)
+                    if (address != null) {
+                        location = address
+                    }
+                }
+
+                override fun onError() {
+                    Log.e("Get Address ::", "Something is wrong...")
+                }
+            })
+
+            addressTask.getAddress()
+        }
+    }
+
+
+    @SuppressLint("SuspiciousIndentation")
     @Composable
     private fun SelectActionDialog(image: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>) {
 
@@ -429,6 +600,7 @@ class AddPlaceActivity : AppCompatActivity() {
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                             photoTakenByCameraBoolean = false
+
                         })
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -454,12 +626,24 @@ class AddPlaceActivity : AppCompatActivity() {
     public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         when {
+
             requestCode == CAMERA && resultCode == Activity.RESULT_OK -> {
                 val thumbnail: Bitmap = data!!.extras!!.get("data") as Bitmap
                 takenImageBitmap = thumbnail
                 imageUri = saveImageToInternalStorage(thumbnail)
                 Log.e("Saved Image : ", "Path :: $imageUri")
                 photoTakenByCameraBoolean = true
+            }
+
+            requestCode == MAPS_REQUEST_KEY && resultCode == Activity.RESULT_OK -> {
+                val place: Place = Autocomplete.getPlaceFromIntent(data!!)
+                location = place.address ?: "Default Location"
+                latitude = place.latLng?.latitude ?: 0.0
+                longitude = place.latLng?.longitude ?: 0.0
+            }
+
+            requestCode == PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION && resultCode == Activity.RESULT_OK -> {
+                locationPermissionGranted.value = true
             }
 
             resultCode == Activity.RESULT_CANCELED -> {
@@ -469,6 +653,7 @@ class AddPlaceActivity : AppCompatActivity() {
     }
 
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun getPermission(context: Context) {
 
         val dexter = Dexter.withContext(context).withPermissions(
@@ -480,13 +665,13 @@ class AddPlaceActivity : AppCompatActivity() {
                 report.let {
 
                     if (report!!.areAllPermissionsGranted()) {
-                        allPermissionsGrantedDialog = true
+                        storageAndCameraPermissions = true
                     }
                 }
             }
 
             override fun onPermissionRationaleShouldBeShown(
-                permission: MutableList<com.karumi.dexter.listener.PermissionRequest>?,
+                permission: MutableList<PermissionRequest>?,
                 token: PermissionToken?
             ) {
                 showRationaleDialogForPermission()
@@ -539,6 +724,8 @@ class AddPlaceActivity : AppCompatActivity() {
     companion object {
         private const val CAMERA = 1
         private const val IMAGE_DIRECTORY = "FavouritePlacesImages"
+        private const val MAPS_REQUEST_KEY = 2
+        private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 3
     }
 
 }
