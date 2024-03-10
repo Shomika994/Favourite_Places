@@ -9,10 +9,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
@@ -97,7 +100,8 @@ class ShowSavedPlace : AppCompatActivity() {
     @Composable
     private fun AllComponents(place: FavouritePlaceModel, color: Color) {
 
-        Column(
+
+            Column(
             modifier = Modifier
                 .fillMaxSize(),
             horizontalAlignment = Alignment.Start
@@ -105,10 +109,10 @@ class ShowSavedPlace : AppCompatActivity() {
 
             AsyncImage(
                 model = place.image,
-                contentScale = ContentScale.FillBounds,
                 contentDescription = null,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .size(500.dp)
+
             )
 
             Column(

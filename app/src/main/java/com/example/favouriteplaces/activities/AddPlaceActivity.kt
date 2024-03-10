@@ -526,15 +526,15 @@ class AddPlaceActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun requestNewLocationData() {
 
-        val mLocationRequest = LocationRequest()
-        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        mLocationRequest.interval = 0
-        mLocationRequest.fastestInterval = 0
-        mLocationRequest.numUpdates = 1
+        val locationRequest = LocationRequest()
+        locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        locationRequest.interval = 0
+        locationRequest.fastestInterval = 0
+        locationRequest.numUpdates = 1
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         fusedLocationClient.requestLocationUpdates(
-            mLocationRequest, locationCallback,
+            locationRequest, locationCallback,
             Looper.myLooper()
         )
     }
@@ -600,7 +600,6 @@ class AddPlaceActivity : AppCompatActivity() {
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                             photoTakenByCameraBoolean = false
-
                         })
                         Spacer(modifier = Modifier.height(16.dp))
 
