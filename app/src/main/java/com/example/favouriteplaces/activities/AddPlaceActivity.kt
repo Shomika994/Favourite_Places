@@ -78,6 +78,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.com.example.favouriteplaces.BuildConfig
 import com.example.com.example.favouriteplaces.R
 import com.example.favouriteplaces.FavouritePlacesManager
@@ -372,12 +373,12 @@ class AddPlaceActivity : AppCompatActivity() {
             Spacer(modifier = Modifier.height(16.dp))
 
             AsyncImage(
-                model =
-                placeToEdit?.image ?: run {
+                model = rememberAsyncImagePainter(model = placeToEdit?.image ?: run {
                     if (photoTakenByCameraBoolean) {
                         takenImageBitmap
                     } else selectedImageUri
-                },
+                })
+                ,
                 contentDescription = "SelectedImage",
                 modifier = Modifier
                     .size(200.dp)
@@ -668,7 +669,6 @@ class AddPlaceActivity : AppCompatActivity() {
                     }
                 }
             }
-
             override fun onPermissionRationaleShouldBeShown(
                 permission: MutableList<PermissionRequest>?,
                 token: PermissionToken?

@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.com.example.favouriteplaces.R
 import com.example.favouriteplaces.models.FavouritePlaceModel
 
@@ -108,7 +109,7 @@ class ShowSavedPlace : AppCompatActivity() {
         ) {
 
             AsyncImage(
-                model = place.image,
+                model = rememberAsyncImagePainter(model = place.image),
                 contentDescription = null,
                 modifier = Modifier
                     .size(500.dp)
