@@ -373,11 +373,11 @@ class AddPlaceActivity : AppCompatActivity() {
             Spacer(modifier = Modifier.height(16.dp))
 
             AsyncImage(
-                model = rememberAsyncImagePainter(model = placeToEdit?.image ?: run {
+                model = placeToEdit?.image ?: run {
                     if (photoTakenByCameraBoolean) {
                         takenImageBitmap
                     } else selectedImageUri
-                })
+                }
                 ,
                 contentDescription = "SelectedImage",
                 modifier = Modifier
@@ -727,6 +727,12 @@ class AddPlaceActivity : AppCompatActivity() {
         private const val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 3
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    @Preview
+    @Composable
+    fun App(){
+        AddFavouritePlaceContent()
+    }
 }
 
 
